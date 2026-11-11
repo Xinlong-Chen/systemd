@@ -938,9 +938,9 @@ static int parse_argv(int argc, char *argv[], char ***remaining_args) {
                 return log_error_errno(SYNTHETIC_ERRNO(EINVAL),
                                        "--since= must be before --until=.");
 
-        if (!!arg_cursor + !!arg_after_cursor + !!arg_cursor_file + !!arg_since_set > 1)
+        if (!!arg_cursor + !!arg_after_cursor + !!arg_since_set > 1)
                 return log_error_errno(SYNTHETIC_ERRNO(EINVAL),
-                                       "Please specify only one of --since=, --cursor=, --cursor-file=, and --after-cursor=.");
+                                       "Please specify only one of --since=, --cursor=, and --after-cursor=.");
 
         if (arg_follow && arg_reverse)
                 return log_error_errno(SYNTHETIC_ERRNO(EINVAL),

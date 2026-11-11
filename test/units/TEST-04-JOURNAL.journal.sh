@@ -341,6 +341,30 @@ world
 EOF
 rm -f "$CURSOR_FILE"
 
+# Check that --cursor-file= uses --since= to initialize a missing cursor file and resumes from the
+# stored cursor on subsequent invocations.
+# See: https://github.com/systemd/systemd/issues/44771
+CURSOR_FILE="/tmp/issue-44771-cursor"
+ID="$(systemd-id128 new)"
+rm -f "$CURSOR_FILE"
+systemd-cat -t "$ID" echo first
+journalctl --sync
+diff <(journalctl -q --cursor-file="$CURSOR_FILE" --since=-1min -t "$ID" -o cat) - <<EOF
+first
+EOF
+test -s "$CURSOR_FILE"
+systemd-cat -t "$ID" echo second
+journalctl --sync
+diff <(journalctl -q --cursor-file="$CURSOR_FILE" --since=-1min -t "$ID" -o cat) - <<EOF
+second
+EOF
+
+# A missing cursor file must also be initialized when no entry is new enough for --since=.
+rm -f "$CURSOR_FILE"
+journalctl -q --cursor-file="$CURSOR_FILE" --since=tomorrow -t "$ID"
+test -s "$CURSOR_FILE"
+rm -f "$CURSOR_FILE"
+
 # Check that --until works with --after-cursor and --lines/-n
 # See: https://github.com/systemd/systemd/issues/31776
 CURSOR_FILE="$(mktemp)"

@@ -493,16 +493,34 @@ static int setup_event(Context *c, int fd) {
         return 0;
 }
 
-static int update_cursor(sd_journal *j) {
+static int update_cursor(Context *c) {
         _cleanup_free_ char *cursor = NULL;
         int r;
 
-        assert(j);
+        assert(c);
+        assert(c->journal);
 
         if (!arg_show_cursor && !arg_cursor_file)
                 return 0;
 
-        r = sd_journal_get_cursor(j, &cursor);
+        r = sd_journal_get_cursor(c->journal, &cursor);
+
+        /* Use the last entry before --since= to initialize the cursor file. */
+        if (r == -EADDRNOTAVAIL && arg_cursor_file && arg_since_set && !c->has_cursor) {
+                r = sd_journal_seek_realtime_usec(c->journal, arg_since);
+                if (r < 0)
+                        return log_error_errno(r, "Failed to seek to date: %m");
+
+                r = sd_journal_previous(c->journal);
+                if (r < 0)
+                        return log_error_errno(r, "Failed to iterate through journal: %m");
+                if (r == 0)
+                        return 0;
+
+                r = sd_journal_get_cursor(c->journal, &cursor);
+        }
+
+        /* No current entry means there is no cursor to show or store. */
         if (r == -EADDRNOTAVAIL)
                 return 0;
         if (r < 0)
@@ -587,7 +605,7 @@ int action_show(char **matches) {
                 if (r < 0)
                         return r;
 
-                r = update_cursor(c.journal);
+                r = update_cursor(&c);
                 if (r < 0)
                         return r;
 
@@ -605,7 +623,7 @@ int action_show(char **matches) {
         if (n_shown == 0 && !arg_quiet)
                 printf("-- No entries --\n");
 
-        r = update_cursor(c.journal);
+        r = update_cursor(&c);
         if (r < 0)
                 return r;
 
